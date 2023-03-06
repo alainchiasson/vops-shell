@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+#
+# VOPS list - list managed vault clusters
+#
+
+source vops-lib.sh
+
+vops_clusters

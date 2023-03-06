@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+#
+# VOPS unseal - Unseal the default cluster.
+#
+
+# for x in $(vault kv get -field=init secret/vault | jq -r '.unseal_keys_hex[]'  )
+# do
+#   vault operator unseal -address=$VAULT_NEW $x
+# done
+
+source vops-lib.sh
+
+VAULT_NEW=$(cluster_addr)
+KEY_SHARES=$(key_shares)
+KEY_THRESHOLD=$(key_threshold)
+KEY_PATH=$(key_path)
+
+x=0
+while [[ $x -lt $KEY_THRESHOLD ]]
+do
+    vault operator unseal  -address=$VAULT_NEW $(jq -r ".unseal_keys_hex[$x]" $KEY_PATH )
+    (( x = x + 1 ))
+done

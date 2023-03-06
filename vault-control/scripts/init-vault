@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+#
+# Init New Vault
+#
+
+# vault operator init -address=$VAULT_NEW -key-shares=1 -key-threshold=1 -format=json > init.json
+
+# 
+# Extract and store keys in seed vault
+#
+
+# vault kv put secret/vault root_token=$(jq -r '.root_token' init.json) unseal_keys=$(jq -r '.unseal_keys_hex' init.json)
+
+# vault kv put secret/vault init=@init.json
+
+
+vault operator init -address=$VAULT_NEW -key-shares=1 -key-threshold=1 -format=json | vault kv put secret/vault init=-

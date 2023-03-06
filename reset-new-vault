@@ -1,0 +1,11 @@
+# To reset new vault
+
+docker compose stop vault-01
+docker compose stop vault-02
+
+for x in data/*
+do 
+    rm -rf $x/*
+done
+
+docker compose up -d

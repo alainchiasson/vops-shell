@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+#
+# VOPS init - Initialise the default cluster.
+#
+
+# vault operator init 
+#   -address=$VAULT_NEW 
+#   -key-shares=1 -key-threshold=1
+#   -format=json | 
+# vault kv put secret/vault init=-
+
+source vops-lib.sh
+
+CLUSTER_ID=$(vops_find_id)
+
+VAULT_NEW=$(cluster_addr $CLUSTER_ID)
+KEY_SHARES=$(key_shares $CLUSTER_ID)
+KEY_THRESHOLD=$(key_threshold $CLUSTER_ID)
+KEY_PATH=$(key_path $CLUSTER_ID)
+
+vault operator init \
+   -address=$VAULT_NEW \
+   -key-shares=$KEY_SHARES \
+   -key-threshold=$KEY_THRESHOLD \
+   -format=json > $KEY_PATH

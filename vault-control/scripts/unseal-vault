@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+#
+# Init New Vault
+#
+
+for x in $(vault kv get -field=init secret/vault | jq -r '.unseal_keys_hex[]'  )
+do
+  vault operator unseal -address=$VAULT_NEW $x
+done
