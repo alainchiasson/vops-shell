@@ -1,0 +1,47 @@
+#!/usr/bin/env bash
+#
+# Set-up transit for auto-unseal
+#
+
+# Basic flow
+# - Using root
+# - enable transit
+# - create policy
+# - create token role
+
+source vops-lib.sh
+
+CLUSTER=$1
+
+CLUSTER_ID=$(vops_id_by_name $1)
+
+VAULT_NEW=$(cluster_addr $CLUSTER_ID)
+ROOT_TOKEN=$(get_root $CLUSTER_ID)
+KEY_PATH=$(key_path $CLUSTER_ID)
+
+VAULT_TOKEN=$ROOT_TOKEN vault secrets enable \
+   -address=$VAULT_NEW \
+   transit
+
+VAULT_TOKEN=$ROOT_TOKEN vault write -f \
+   -address=$VAULT_NEW \
+   transit/keys/autounseal
+   
+tee $KEY_PATH/autounseal.hcl <<EOF
+path "transit/encrypt/autounseal" {
+   capabilities = [ "update" ]
+}
+
+path "transit/decrypt/autounseal" {
+   capabilities = [ "update" ]
+}
+EOF
+
+VAULT_TOKEN=$ROOT_TOKEN vault policy write -address=$VAULT_NEW \
+   autounseal $KEY_PATH/autounseal.hcl
+
+VAULT_TOKEN=$ROOT_TOKEN vault token create \
+   -address=$VAULT_NEW -format=json \
+   -orphan -policy="autounseal" \
+   -period=24h > $KEY_PATH/unseal-token.json
+

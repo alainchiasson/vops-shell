@@ -11,10 +11,9 @@ RUN python3 -m pip install yq
 
 RUN setcap cap_ipc_lock= /usr/bin/vault
 
-RUN version=$(curl -S "https://api.github.com/repos/FalcoSuessgott/vops/releases/latest" | jq -r '.tag_name[1:]')
-RUN curl -OL "https://github.com/FalcoSuessgott/vops/releases/latest/download/vops_0.0.4_linux_amd64.rpm"
-RUN dnf localinstall -y vops_0.0.4_linux_amd64.rpm
-# vops version
+RUN version=$(curl -S "https://api.github.com/repos/FalcoSuessgott/vops/releases/latest" | jq -r '.tag_name[1:]') && \
+    curl -OL "https://github.com/FalcoSuessgott/vops/releases/latest/download/vops_${version}_linux_amd64.rpm" && \
+    dnf install -y vops_${version}_linux_amd64.rpm
 
 WORKDIR /workdir
 
