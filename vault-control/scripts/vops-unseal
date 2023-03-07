@@ -10,10 +10,12 @@
 
 source vops-lib.sh
 
-VAULT_NEW=$(cluster_addr)
-KEY_SHARES=$(key_shares)
-KEY_THRESHOLD=$(key_threshold)
-KEY_PATH=$(key_path)
+CLUSTER_ID=$(vops_id_by_name $1)
+
+VAULT_NEW=$(cluster_addr $CLUSTER_ID)
+KEY_SHARES=$(key_shares $CLUSTER_ID)
+KEY_THRESHOLD=$(key_threshold $CLUSTER_ID)
+KEY_PATH=$(key_path $CLUSTER_ID)
 
 # should test to see if cluster is init.
 

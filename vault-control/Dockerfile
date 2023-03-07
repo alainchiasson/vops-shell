@@ -6,7 +6,7 @@ RUN yum-config-manager --add-repo https://rpm.releases.hashicorp.com/RHEL/hashic
 
 FROM almalinux-cache
 
-RUN dnf install -y jq vault python3
+RUN dnf install -y jq vault python3 procps-ng ncurses
 RUN python3 -m pip install yq
 
 RUN setcap cap_ipc_lock= /usr/bin/vault
