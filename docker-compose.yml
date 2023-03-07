@@ -11,6 +11,8 @@ services:
       VAULT_ADDR: "http://vault-seed:8200"
       VAULT_NEW: "http://vault-new:8200"
       VAULT_TOKEN: "root"
+    volumes:
+      - ./vault.d:/vault-configs
       
   vault-seed:
     image: hashicorp/vault
@@ -34,7 +36,7 @@ services:
     image: hashicorp/vault
     environment:
       VAULT_ADDR: "http://vault-02:8200"
-    command: vault server -config=/etc/vault.d/vault.hcl
+    command: vault server -config=/etc/vault.d/vault.hcl 
     volumes:
       - ./vault.d/vault-02:/etc/vault.d
       - ./data/vault-02:/opt/vault/data
