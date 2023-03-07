@@ -27,5 +27,10 @@ vault read -address=$VAULT_SEC \
    -format=json \
    sys/replication/dr/status > $KEY_PATH_SEC/status.json
 
-echo "[ $(cat vault-03/status.json) , $(cat vault-04/status.json) ]" \
-   | jq '{ "wal": { "pri": .[0].data.last_wal , "sec": .[0].data.last_dr_wal, "remo": .[1].data.last_remote_wal, "state": { "pri": .[0].data.state, "sec":  .[1].data.state} }'
+echo "[" > $KEY_PATH_PRI/combo.json
+cat  $KEY_PATH_PRI/status.json >>  $KEY_PATH_PRI/combo.json
+echo " , " >> $KEY_PATH_PRI/combo.json
+cat  $KEY_PATH_SEC/status.json >>  $KEY_PATH_PRI/combo.json
+echo "]" >> $KEY_PATH_PRI/combo.json
+
+jq '{ "wal_pri": .[0].data.last_wal , "wal_sec": .[0].data.last_dr_wal , "wal_rem": .[1].data.last_remote_wal, "state_pri": .[0].data.state ,  "state_sec": .[1].data.state }' $KEY_PATH_PRI/combo.json
