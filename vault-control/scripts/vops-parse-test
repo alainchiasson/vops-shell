@@ -12,17 +12,21 @@ KEY_THRESHOLD=$(key_threshold)
 KEY_PATH=$(key_path)
 
 # Test Return 0
-CLUSTER_ID=$(vops_find_id)
+CLUSTER_ID=$(vops_default_id)
 
 VAULT_NEW=$(cluster_addr $CLUSTER_ID)
 KEY_SHARES=$(key_shares $CLUSTER_ID)
 KEY_THRESHOLD=$(key_threshold $CLUSTER_ID)
 KEY_PATH=$(key_path $CLUSTER_ID)
 
-# Test Return 0
-CLUSTER_ID=1
+# Test return 0
+CLUSTER_ID=$(vops_id_by_name vault-01)
+CLUSTER_NAME=$(cluster_name ${CLUSTER_ID})
 
-VAULT_NEW=$(cluster_addr $CLUSTER_ID)
-KEY_SHARES=$(key_shares $CLUSTER_ID)
-KEY_THRESHOLD=$(key_threshold $CLUSTER_ID)
-KEY_PATH=$(key_path $CLUSTER_ID)
+echo "vault-01 == ${CLUSTER_NAME}"
+
+# Test return 1
+CLUSTER_ID=$(vops_id_by_name vault-02)
+CLUSTER_NAME=$(cluster_name ${CLUSTER_ID})
+
+echo "vault-02 == ${CLUSTER_NAME}"

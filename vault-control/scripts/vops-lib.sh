@@ -5,6 +5,17 @@ vops_find_id() {
     echo 0
 }
 
+# [root@b9ec86b73caf workdir]# yq --arg CNAME "$cname"  '.Cluster | map(.Name == $CNAME ) | index(true)' vops.yaml
+
+vops_id_by_name() {
+    cname=$1
+    yq --arg CNAME "$cname" '.Cluster | map(.Name == $CNAME) | index(true)' vops.yaml
+}
+
+vops_default_id() {
+    echo 0
+}
+
 vops_clusters() {
     yq -r  ".Cluster[].Name" vops.yaml
 }

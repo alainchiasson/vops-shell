@@ -15,9 +15,11 @@ KEY_SHARES=$(key_shares)
 KEY_THRESHOLD=$(key_threshold)
 KEY_PATH=$(key_path)
 
+# should test to see if cluster is init.
+
 x=0
 while [[ $x -lt $KEY_THRESHOLD ]]
 do
-    vault operator unseal  -address=$VAULT_NEW $(jq -r ".unseal_keys_hex[$x]" $KEY_PATH )
+    vault operator unseal  -address=$VAULT_NEW $(jq -r ".unseal_keys_hex[$x]" $KEY_PATH/init.json )
     (( x = x + 1 ))
 done

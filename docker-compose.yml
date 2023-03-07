@@ -27,7 +27,7 @@ services:
       VAULT_ADDR: "http://vault-01:8200"
     command: vault server -config=/etc/vault.d/vault.hcl
     volumes:
-      - ./vault.d:/etc/vault.d
+      - ./vault.d/vault-01:/etc/vault.d
       - ./data/vault-01:/opt/vault/data
 
   vault-02:
@@ -36,5 +36,23 @@ services:
       VAULT_ADDR: "http://vault-02:8200"
     command: vault server -config=/etc/vault.d/vault.hcl
     volumes:
-      - ./vault.d:/etc/vault.d
+      - ./vault.d/vault-02:/etc/vault.d
       - ./data/vault-02:/opt/vault/data
+
+  vault-03:
+    image: hashicorp/vault-enterprise:1.7-ent
+    environment:
+      VAULT_ADDR: "http://vault-03:8200"
+    command: vault server -config=/etc/vault.d/vault.hcl
+    volumes:
+      - ./vault.d/vault-03:/etc/vault.d
+      - ./data/vault-03:/opt/vault/data
+
+  vault-04:
+    image: hashicorp/vault-enterprise:1.7-ent
+    environment:
+      VAULT_ADDR: "http://vault-04:8200"
+    command: vault server -config=/etc/vault.d/vault.hcl
+    volumes:
+      - ./vault.d/vault-04:/etc/vault.d
+      - ./data/vault-04:/opt/vault/data

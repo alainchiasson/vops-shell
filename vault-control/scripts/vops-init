@@ -11,15 +11,17 @@
 
 source vops-lib.sh
 
-CLUSTER_ID=$(vops_find_id)
+CLUSTER_ID=$(vops_id_by_name $1)
 
 VAULT_NEW=$(cluster_addr $CLUSTER_ID)
 KEY_SHARES=$(key_shares $CLUSTER_ID)
 KEY_THRESHOLD=$(key_threshold $CLUSTER_ID)
 KEY_PATH=$(key_path $CLUSTER_ID)
 
+mkdir -p $KEY_PATH
+
 vault operator init \
    -address=$VAULT_NEW \
    -key-shares=$KEY_SHARES \
    -key-threshold=$KEY_THRESHOLD \
-   -format=json > $KEY_PATH
+   -format=json > $KEY_PATH/init.json

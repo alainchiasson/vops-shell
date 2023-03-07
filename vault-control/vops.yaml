@@ -1,9 +1,8 @@
 Cluster:
   - Name: "vault-01"
     Addr: "http://vault-01:8200"
-    TokenExecCmd: "jq -r '.root_token' {{ .Keys.Path }}"
     Keys:
-      Path: "vault-01.json"
+      Path: "vault-01"
       Shares: 1
       Threshold: 1
     SnapshotDirectory: "snapshots/"
@@ -14,9 +13,32 @@ Cluster:
 
   - Name: "vault-02"
     Addr: "http://vault-02:8200"
-    TokenExecCmd: "jq -r '.root_token' {{ .Keys.Path }}"
     Keys:
-      Path: "vault-02.json"
+      Path: "vault-02"
+      Shares: 1
+      Threshold: 1
+    SnapshotDirectory: "snapshots/"
+    Nodes:
+      - "{{ .Addr }}"
+    ExtraEnv:
+     VAULT_SKIP_VERIFY: true
+
+  - Name: "vault-03"
+    Addr: "http://vault-03:8200"
+    Keys:
+      Path: "vault-03"
+      Shares: 1
+      Threshold: 1
+    SnapshotDirectory: "snapshots/"
+    Nodes:
+      - "{{ .Addr }}"
+    ExtraEnv:
+     VAULT_SKIP_VERIFY: true
+
+  - Name: "vault-04"
+    Addr: "http://vault-04:8200"
+    Keys:
+      Path: "vault-04"
       Shares: 1
       Threshold: 1
     SnapshotDirectory: "snapshots/"
