@@ -45,3 +45,8 @@ key_path() {
     yq -r ".Cluster[$ID].Keys.Path" vops.yaml
 }
 
+get_root() {
+    ID=${1:-0}
+    KEY_PATH=$(key_path $ID)
+    jq -r '.root_token' $KEY_PATH/init.json 
+}
