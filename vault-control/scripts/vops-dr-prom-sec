@@ -50,8 +50,10 @@ vault operator generate-root -address=$VAULT_SEC \
    -otp=$(jq -r '.otp' $KEY_PATH_SEC/dr-token-init.json) > $KEY_PATH_SEC/dr-token.json
 
 # Shutdown primary.
-# systemctl stop vault 
+# systemctl stop vault -or- demote primary first.
+VAULT_TOKEN=$ROOT_PRI vault write -address=http://vault-03:8200  -f sys/replication/dr/primary/demote
 
 # Promote secondary.
 vault write -address=$VAULT_SEC \
    sys/replication/dr/secondary/promote dr_operation_token=$(jq -r '.token' $KEY_PATH_SEC/dr-token.json)
+
