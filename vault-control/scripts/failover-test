@@ -1,0 +1,32 @@
+# Setup initial systems
+
+vops-init vault-01
+vops-unseal vault-01
+
+
+#vops-setup-transit vault-01
+#vops-config-unseal vault-03 vault-01
+# Setup second system
+
+vops-init vault-02
+vops-unseal vault-02
+vops-setup-transit vault-02
+
+vops-config-unseal vault-04 vault-02
+
+# Create New COnfigs for 4 and 3
+
+cat /vault-configs/vault-03/unseal-clip.hcl >> /vault-configs/vault-03/vault.hcl
+cat /vault-configs/vault-04/unseal-clip.hcl >> /vault-configs/vault-04/vault.hcl
+
+vops-init vault-03
+vops-init vault-04
+
+watch vops-dr-status vault-03 vault-04 &
+
+vops-dr-link vault-03 vault-04
+
+# Failover - 1st
+
+vops-dr-prom-sec vault-03 vault-04
+

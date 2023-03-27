@@ -1,0 +1,50 @@
+#!/usr/bin/env bash
+#
+# vops-dr-generate-ops-token cluster cluster-key-set
+#
+# Generate a DR-Ops-Token via "cluster" using the "cluster-key-set"
+#
+# As you start linking up clusters for DR, the keysets also get replicated.
+#
+
+source vops-lib.sh
+
+GENERATOR_CLUSTER=$1
+GENERATOR_CLUSTER_ID=$(vops_id_by_name $GENERATOR_CLUSTER)
+GENERATOR_CLUSTER_ADDR=$(cluster_addr $GENERATOR_CLUSTER_ID)
+GENERATOR_CLUSTER_CONFIG=$(key_path $GENERATOR_CLUSTER_ID)
+GENERATOR_CLUSTER_ROOT=$(get_root $GENERATOR_CLUSTER_ID)
+GENERATOR_CLUSTER_SHARES=$(key_shares $GENERATOR_CLUSTER_ID)
+GENERATOR_CLUSTER_THRESH=$(key_threshold $GENERATOR_CLUSTER_ID)
+
+KEY_CLUSTER=$2
+KEY_CLUSTER_ID=$(vops_id_by_name $KEY_CLUSTER)
+KEY_CLUSTER_ADDR=$(cluster_addr $KEY_CLUSTER_ID)
+KEY_CLUSTER_PATH=$(key_path $KEY_CLUSTER_ID)
+KEY_CLUSTER_ROOT=$(get_root $KEY_CLUSTER_ID)
+
+
+# On secondary
+vault operator generate-root -address=$GENERATOR_CLUSTER_ADDR -format=json -dr-token -init > $GENERATOR_CLUSTER_CONFIG/dr-token-init.json
+
+# Recovery Shares and Thresholds
+GENERATOR_CLUSTER_THRESH=$(jq -r '.unseal_threshold' $KEY_CLUSTER_PATH/init.json)
+
+# Loop over all recover kyes
+x=0
+while [[ $x -lt $GENERATOR_CLUSTER_THRESH ]]
+do
+   vault operator generate-root \
+     -address=$GENERATOR_CLUSTER_ADDR \
+     -format=json \
+     -dr-token \
+     -nonce=$(jq -r '.nonce' $GENERATOR_CLUSTER_CONFIG/dr-token-init.json ) $(jq -r --arg INDEX $x '.unseal_keys_hex[$INDEX | tonumber]' $KEY_CLUSTER_PATH/init.json ) >  $GENERATOR_CLUSTER_CONFIG/dr-token-int-result.json
+   (( x = x + 1 ))
+done
+
+# Decrypt DR token 
+vault operator generate-root -address=$GENERATOR_CLUSTER_ADDR \
+   -format=json \
+   -dr-token \
+   -decode=$(jq -r '.encoded_token' $GENERATOR_CLUSTER_CONFIG/dr-token-int-result.json)  \
+   -otp=$(jq -r '.otp' $KEY_CLUSTER_PATH/dr-token-init.json) > $KEY_CLUSTER_PATH/dr-ops-token.json

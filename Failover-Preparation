@@ -1,0 +1,284 @@
+# Prep system
+
+yum install -y jq vault-enterprise-1.7.10+ent-1.x86_64
+export VAULT_ADDR=http://127.0.0.1:8200
+
+# Purge Vault
+
+systemctl stop vault
+rm -rf /opt/vault/raft/*
+systemctl start vault
+
+# Check Vault 
+
+vault status
+
+# Init and Unseal Vault
+vault operator init -key-shares=1 -key-threshold=1 -format=json > init.json
+vault operator unseal $(jq -r '.unseal_keys_hex[0]' init.json) 
+
+# Login with root token 
+
+vault login $(jq -r '.root_token' init.json)
+# From tutorial - configure transitkey
+
+mkdir -p /var/log/vault
+chown vault:vault /var/log/vault
+vault audit enable file file_path=/var/log/vault/audit.log
+
+vault secrets enable transit
+vault write -f transit/keys/autounseal
+
+tee autounseal.hcl <<EOF
+path "transit/encrypt/autounseal" {
+   capabilities = [ "update" ]
+}
+
+path "transit/decrypt/autounseal" {
+   capabilities = [ "update" ]
+}
+EOF
+
+vault policy write autounseal autounseal.hcl
+
+# At this point autounseal is done.
+
+vault token create -orphan -policy="autounseal" -wrap-ttl=120 -period=24h
+
+# Config autounseal - on each Vault node.
+tee /etc/vault.d/vault.hcl <<EOF
+disable_mlock = true
+ui=true
+
+storage "raft" {
+  path = "/opt/vault/raft"
+}
+
+# HTTP listener
+listener "tcp" {
+  address = "0.0.0.0:8200"
+  tls_disable = 1
+}
+
+api_addr="http://$(hostname):8200/"
+cluster_addr="http://$(hostname):8201"
+
+seal "transit" {
+  address = "http://127.0.0.1:8100"
+  disable_renewal = "false"
+  key_name = "autounseal"
+  mount_path = "transit/"
+  tls_skip_verify = "true"
+}
+EOF
+
+# Create vault-agent config
+
+tee /etc/vault.d/vault-agent.hcl <<EOF
+pid_file = "./pidfile"
+
+vault {
+  address = "http://vault.home.chiasson.org:8200"
+}
+
+auto_auth {
+  method "approle" {
+    mount_path = "auth/approle"
+
+    config = {
+      role_id_file_path = "/etc/vault.d/role_id"
+      secret_id_file_path = "/etc/vault.d/secret_id"
+      remove_secret_id_file_after_reading = false
+    }
+  }
+
+  sink {
+    type = "file"
+    config = {
+      path = "/etc/vault.d/agent.token"
+    }
+  }
+}
+
+
+cache {
+  use_auto_auth_token = true
+}
+
+listener "tcp" {
+  address = "127.0.0.1:8100"
+  tls_disable = true
+}
+EOF
+
+
+# Create the approle
+
+vault auth enable approle
+vault write auth/approle/role/unseal policy=autounseal secret_id_ttl=0
+
+# Create RoleID policy
+tee unseal_approle.hcl <<EOF
+
+path "auth/approle/role/unseal/*" {
+   capabilities = [ "update", "read", "create" ]
+}
+
+EOF
+
+vault policy write unseal_approle unseal_approle.hcl
+
+# Create the Wrapping token 
+vault token create -policy="unseal_approle" -wrap-ttl=120 
+
+# On remote machine
+VAULT_TOKEN=
+VAULT_ADDR=http://vault.home.chiasson.org:8200 VAULT_TOKEN=s.vRFO8JJlC6sj5plLNbe4rnpo  vault unwrap 
+
+VAULT_ADDR=http://vault.home.chiasson.org:8200 vault token lookup 
+
+# Create Role_ID
+VAULT_ADDR=http://vault.home.chiasson.org:8200 vault read -field=role_id auth/approle/role/unseal/role-id > /etc/vault.d/role_id
+# Create Secret_ID
+VAULT_ADDR=http://vault.home.chiasson.org:8200 vault write -f -field=secret_id auth/approle/role/unseal/secret-id >  /etc/vault.d/secret_id
+
+
+# Setup first node 
+
+VAULT_ADDR=http://vault.home.chiasson.org:8200 vault status 
+
+VAULT_ADDR=http://unseal-0.home.chiasson.org:8200/ vault operator init
+VAULT_ADDR=http://unseal-1.home.chiasson.org:8200/ vault operator init
+
+
+[root@vault ~]# VAULT_ADDR=http://unseal-1.home.chiasson.org:8200/ vault operator init
+
+Recovery Key 1: AVnL6W2+QhIfemO+rfEixaTTkTY9IX/wrysZaPV+7bOQ
+Recovery Key 2: ejZDnF24bHaVUt5uoG505/u2lPg5Z766c2vQiEH4YwZF
+Recovery Key 3: 1ti2VxCVS8R/fFE0h5jrcxlMTZQLxYBalBQoRzQ9OQM1
+Recovery Key 4: b/lsWJXD6NYWbBMBVFTvqZ4dIuXuB+kfjZWyn9kM8+Jc
+Recovery Key 5: 93/sHA/NjCA6l0TtNyQTYlQzcPZMcGCtjdcdogEcyvUq
+
+Initial Root Token: s.y2nTLnLH8IYBRNS2ukeRNjzD
+
+Success! Vault is initialized
+
+[root@vault ~]# VAULT_ADDR=http://unseal-0.home.chiasson.org:8200/ vault operator init
+
+Recovery Key 1: K0Ouc7zMhpSwJwUnD5afaMq21E384ewG58LUSP69pW37
+Recovery Key 2: 8HU77Y7M/2ur+uExINSh7+he70aIX421mnLaXoOgf7RH
+Recovery Key 3: TCZ6NUtesO2hyteijtY7SiFWs/7auDyzfyRM6XQOjEqv
+Recovery Key 4: XVenoYZXq/ffas9MGCsIPAZMicSGK08vGrOAHx208AM/
+Recovery Key 5: AQh7yqrndlc3zZslHrG48YhwAHXCAENqTq6p6AYL5EG1
+
+Initial Root Token: s.Z6DF7L0zyyB8IB526vYtDRtn
+
+Success! Vault is initialized
+
+
+# Ok - I now have 2 clusters - both working on same seal key.... Yes - they are just encrypting.
+# As long as the older keys are present, it will change as the root key rotates.
+#
+
+# Question is - if the transit key is different - will the failover work ?
+
+#  Setting u pfor failover - vault direct.
+
+# Enable load balancer ( HAProxy )
+
+
+# On primary
+vault write -f sys/replication/dr/primary/enable
+vault write -format=json sys/replication/dr/primary/secondary-token id="dr-secondary" > dr-token-u0.json
+# On secondary
+vault write sys/replication/dr/secondary/enable token=$(jq -r '.wrap_info.token' dr-token-u0.json )
+
+# Monitoring replication 
+vault read -format=json sys/replication/dr/status
+
+# Compare the Secondary and Primary - no auth required.
+
+# 
+# On DR 
+#
+vault operator generate-root -format=json -dr-token -init > dr-token-u1.json
+
+# Loop over all recover kyes
+vault operator generate-root -format=json -dr-token -nonce=$(jq -r '.nonce' dr-token-u1.json ) $(jq -r '.unseal_keys_hex[0]' init-u0.json) > gen-dr-ops.json
+vault operator generate-root -format=json -dr-token -nonce=$(jq -r '.nonce' dr-token-u1.json ) $(jq -r '.unseal_keys_hex[1]' init-u0.json) > gen-dr-ops.json
+vault operator generate-root -format=json -dr-token -nonce=$(jq -r '.nonce' dr-token-u1.json ) $(jq -r '.unseal_keys_hex[2]' init-u0.json) > gen-dr-ops.json
+
+
+# Decrypt DR token 
+vault operator generate-root -dr-token -decode="djw4BR1iaDUFIBxaAwpiCC1YGhQHHDMf" -otp="EYHAkPQYvvz93e8iI3pg1maQ"
+
+# Shutdown primary.
+systemctl stop vault 
+
+# Promote secondary.
+vault write sys/replication/dr/secondary/promote dr_operation_token=<DR_OPERATION_TOKEN>
+
+# Roll Back - Shutdown Secondary - start up Primay
+systemctl stop vault 
+systemctl start vault 
+
+# Vault config
+{
+  "unseal_keys_b64": [
+    "GQ8aH33unq3OtIgXBkIg2NT0zV+zlubxlst0eWQnKU0="
+  ],
+  "unseal_keys_hex": [
+    "190f1a1f7dee9eadceb48817064220d8d4f4cd5fb396e6f196cb74796427294d"
+    "1f1a0f19ad9eee7d1788b4ced82042065fcdf4d4f1e696b37974cb964d292764"
+  ],
+  "unseal_shares": 1,
+  "unseal_threshold": 1,
+  "recovery_keys_b64": [],
+  "recovery_keys_hex": [],
+  "recovery_keys_shares": 5,
+  "recovery_keys_threshold": 3,
+  "root_token": "s.TZgW2KuKHVdZHQMSCQrsSTHG"
+}
+
+# unseal-0 Config:
+{
+  "unseal_keys_b64": [
+    "GQ8aH33unq3OtIgXBkIg2NT0zV+zlubxlst0eWQnKU0="
+  ],
+  "unseal_keys_hex": [
+    "AVnL6W2+QhIfemO+rfEixaTTkTY9IX/wrysZaPV+7bOQ"
+    "ejZDnF24bHaVUt5uoG505/u2lPg5Z766c2vQiEH4YwZF"
+    "1ti2VxCVS8R/fFE0h5jrcxlMTZQLxYBalBQoRzQ9OQM1"
+    "b/lsWJXD6NYWbBMBVFTvqZ4dIuXuB+kfjZWyn9kM8+Jc"
+    "93/sHA/NjCA6l0TtNyQTYlQzcPZMcGCtjdcdogEcyvUq"
+  ],
+  "unseal_shares": 1,
+  "unseal_threshold": 1,
+  "recovery_keys_b64": [],
+  "recovery_keys_hex": [],
+  "recovery_keys_shares": 5,
+  "recovery_keys_threshold": 3,
+  "root_token": "s.Z6DF7L0zyyB8IB526vYtDRtn"
+}
+
+# Unseal-1.Config
+{
+  "unseal_keys_b64": [
+    "GQ8aH33unq3OtIgXBkIg2NT0zV+zlubxlst0eWQnKU0="
+  ],
+  "unseal_keys_hex": [
+    "AVnL6W2+QhIfemO+rfEixaTTkTY9IX/wrysZaPV+7bOQ"
+    "ejZDnF24bHaVUt5uoG505/u2lPg5Z766c2vQiEH4YwZF"
+    "1ti2VxCVS8R/fFE0h5jrcxlMTZQLxYBalBQoRzQ9OQM1"
+    "b/lsWJXD6NYWbBMBVFTvqZ4dIuXuB+kfjZWyn9kM8+Jc"
+    "93/sHA/NjCA6l0TtNyQTYlQzcPZMcGCtjdcdogEcyvUq"
+  ],
+  "unseal_shares": 1,
+  "unseal_threshold": 1,
+  "recovery_keys_b64": [],
+  "recovery_keys_hex": [],
+  "recovery_keys_shares": 5,
+  "recovery_keys_threshold": 3,
+  "root_token": "s.y2nTLnLH8IYBRNS2ukeRNjzD"
+}
+

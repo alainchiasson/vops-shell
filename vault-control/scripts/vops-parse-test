@@ -30,3 +30,13 @@ CLUSTER_ID=$(vops_id_by_name vault-02)
 CLUSTER_NAME=$(cluster_name ${CLUSTER_ID})
 
 echo "vault-02 == ${CLUSTER_NAME}"
+
+# Test Token Retrieval
+for x in $(cluster list)
+do 
+    vops-init $x
+    vops-unseal $x
+    get-root $x
+done
+
+

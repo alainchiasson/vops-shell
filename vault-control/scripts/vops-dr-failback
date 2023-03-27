@@ -1,0 +1,67 @@
+#!/usr/bin/env bash
+#
+# vops-dr-dmot-pri - Demote the primary.
+#
+
+source vops-lib.sh
+
+CLUSTER_PRI=$1
+CLUSTER_SEC=$2
+
+CLUSTER_ID_PRI=$(vops_id_by_name $CLUSTER_PRI)
+CLUSTER_ID_SEC=$(vops_id_by_name $CLUSTER_SEC)
+
+VAULT_PRI=$(cluster_addr $CLUSTER_ID_PRI)
+VAULT_SEC=$(cluster_addr $CLUSTER_ID_SEC)
+
+KEY_PATH_PRI=$(key_path $CLUSTER_ID_PRI)
+KEY_PATH_SEC=$(key_path $CLUSTER_ID_SEC)
+
+ROOT_PRI=$(get_root $CLUSTER_ID_PRI)
+ROOT_SEC=$(get_root $CLUSTER_ID_SEC)
+
+# Which is needed 
+KEY_SHARES=$(key_shares $CLUSTER_ID_PRI)
+KEY_THRESHOLD=$(key_threshold $CLUSTER_ID_SEC)
+
+# On secondary
+vault operator generate-root -address=$VAULT_PRI -format=json -dr-token -init > $KEY_PATH_PRI/dr-token-init.json
+
+# Recovery Shares and Thresholds
+KEY_THRESHOLD=$(jq -r '.recovery_keys_threshold' $KEY_PATH_PRI/init.json)
+
+# Loop over all recover kyes
+x=0
+while [[ $x -lt $KEY_THRESHOLD ]]
+do
+   vault operator generate-root \
+     -address=$VAULT_PRI \
+     -format=json \
+     -dr-token \
+     -nonce=$(jq -r '.nonce' $KEY_PATH_PRI/dr-token-init.json ) $(jq -r --arg INDEX $x '.recovery_keys_hex[$INDEX | tonumber]' $KEY_PATH_PRI/init.json ) >  $KEY_PATH_PRI/gen-dr-ops.json
+   (( x = x + 1 ))
+done
+
+# Decrypt DR token 
+vault operator generate-root -address=$VAULT_PRI \
+   -format=json \
+   -dr-token \
+   -decode=$(jq -r '.encoded_token' $KEY_PATH_PRI/gen-dr-ops.json)  \
+   -otp=$(jq -r '.otp' $KEY_PATH_PRI/dr-token-init.json) > $KEY_PATH_PRI/dr-ops-token.json
+
+DR_OPS_TOKEN=$(jq -r '.token' $KEY_PATH_PRI/dr-ops-token.json)
+# Shutdown primary.
+# systemctl stop vault -or- demote primary first.
+# Promote secondary.
+vault write -address=$VAULT_PRI \
+   sys/replication/dr/secondary/promote dr_operation_token=$DR_OPS_TOKEN
+
+VAULT_TOKEN=$ROOT_PRI vault write -address=$VAULT_SEC -f sys/replication/dr/primary/demote
+
+# Generate a dr secondary token
+VAULT_TOKEN=$ROOT_PRI vault write -address=$VAULT_PRI sys/replication/dr/primary/secondary-token id=dr-secondary > $KEY_PATH_PRI/dr-token.json
+
+# Update to primary
+vault write -address=$VAULT_PRI sys/replication/dr/secondary/update-primary \
+     dr_operation_token=$DR_OPS_TOKEN \
+     token=$(jq -r '.token' $KEY_PATH_PRI/dr-token.json)
