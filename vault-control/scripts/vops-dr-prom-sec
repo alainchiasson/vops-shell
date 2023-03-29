@@ -6,18 +6,15 @@
 source vops-lib.sh
 
 CLUSTER_PRI=$1
-CLUSTER_SEC=$2
-
 CLUSTER_ID_PRI=$(vops_id_by_name $CLUSTER_PRI)
-CLUSTER_ID_SEC=$(vops_id_by_name $CLUSTER_SEC)
-
 VAULT_PRI=$(cluster_addr $CLUSTER_ID_PRI)
-VAULT_SEC=$(cluster_addr $CLUSTER_ID_SEC)
-
 KEY_PATH_PRI=$(key_path $CLUSTER_ID_PRI)
-KEY_PATH_SEC=$(key_path $CLUSTER_ID_SEC)
-
 ROOT_PRI=$(get_root $CLUSTER_ID_PRI)
+
+CLUSTER_SEC=$2
+CLUSTER_ID_SEC=$(vops_id_by_name $CLUSTER_SEC)
+VAULT_SEC=$(cluster_addr $CLUSTER_ID_SEC)
+KEY_PATH_SEC=$(key_path $CLUSTER_ID_SEC)
 ROOT_SEC=$(get_root $CLUSTER_ID_SEC)
 
 # Which is needed 
@@ -25,10 +22,10 @@ KEY_SHARES=$(key_shares $CLUSTER_ID_PRI)
 KEY_THRESHOLD=$(key_threshold $CLUSTER_ID_SEC)
 
 # On secondary
-vault operator generate-root -address=$VAULT_SEC -format=json -dr-token -init > $KEY_PATH_SEC/dr-token-init.json
+vault operator generate-root -address=$VAULT_SEC -format=json -dr-token -init > $KEY_PATH_PRI/dr-token-init.json
 
 # Recovery Shares and Thresholds
-KEY_THRESHOLD=$(jq -r '.recovery_keys_threshold' $KEY_PATH_SEC/init.json)
+KEY_THRESHOLD=$(jq -r '.unseal_threshold' $KEY_PATH_PRI/keys.json)
 
 # Loop over all recover kyes
 x=0
@@ -38,7 +35,7 @@ do
      -address=$VAULT_SEC \
      -format=json \
      -dr-token \
-     -nonce=$(jq -r '.nonce' $KEY_PATH_SEC/dr-token-init.json ) $(jq -r --arg INDEX $x '.recovery_keys_hex[$INDEX | tonumber]' $KEY_PATH_PRI/init.json ) >  $KEY_PATH_SEC/gen-dr-ops.json
+     -nonce=$(jq -r '.nonce' $KEY_PATH_PRI/dr-token-init.json ) $(jq -r --arg INDEX $x '.unseal_keys_hex[$INDEX | tonumber]' $KEY_PATH_PRI/keys.json ) >  $KEY_PATH_PRI/gen-dr-ops.json
    (( x = x + 1 ))
 done
 
@@ -46,14 +43,14 @@ done
 vault operator generate-root -address=$VAULT_SEC \
    -format=json \
    -dr-token \
-   -decode=$(jq -r '.encoded_token' $KEY_PATH_SEC/gen-dr-ops.json)  \
-   -otp=$(jq -r '.otp' $KEY_PATH_SEC/dr-token-init.json) > $KEY_PATH_SEC/dr-token.json
+   -decode=$(jq -r '.encoded_token' $KEY_PATH_PRI/gen-dr-ops.json)  \
+   -otp=$(jq -r '.otp' $KEY_PATH_PRI/dr-token-init.json) > $KEY_PATH_PRI/dr-token.json
 
 # Promote secondary.
 vault write -address=$VAULT_SEC \
-   sys/replication/dr/secondary/promote dr_operation_token=$(jq -r '.token' $KEY_PATH_SEC/dr-token.json)
+   sys/replication/dr/secondary/promote dr_operation_token=$(jq -r '.token' $KEY_PATH_PRI/dr-token.json)
 
 # Shutdown primary.
 # systemctl stop vault -or- demote primary first.
-VAULT_TOKEN=$ROOT_PRI vault write -address=http://vault-03:8200  -f sys/replication/dr/primary/disable
+#VAULT_TOKEN=$ROOT_PRI vault write -address=http://$CLUSTER_PRI:8200  -f sys/replication/dr/primary/demote
 

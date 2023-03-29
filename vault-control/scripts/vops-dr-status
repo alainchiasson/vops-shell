@@ -12,25 +12,11 @@
 source vops-lib.sh
 
 CLUSTER_ID_PRI=$(vops_id_by_name $1)
-CLUSTER_ID_SEC=$(vops_id_by_name $2)
-
 VAULT_PRI=$(cluster_addr $CLUSTER_ID_PRI)
-VAULT_SEC=$(cluster_addr $CLUSTER_ID_SEC)
-
 KEY_PATH_PRI=$(key_path $CLUSTER_ID_PRI)
-KEY_PATH_SEC=$(key_path $CLUSTER_ID_SEC)
 
 vault read -address=$VAULT_PRI \
    -format=json \
    sys/replication/dr/status > $KEY_PATH_PRI/status.json
-vault read -address=$VAULT_SEC \
-   -format=json \
-   sys/replication/dr/status > $KEY_PATH_SEC/status.json
 
-echo "[" > $KEY_PATH_PRI/combo.json
-cat  $KEY_PATH_PRI/status.json >>  $KEY_PATH_PRI/combo.json
-echo " , " >> $KEY_PATH_PRI/combo.json
-cat  $KEY_PATH_SEC/status.json >>  $KEY_PATH_PRI/combo.json
-echo "]" >> $KEY_PATH_PRI/combo.json
-
-jq '{ "wal_pri": .[0].data.last_wal , "wal_sec": .[0].data.last_dr_wal , "wal_rem": .[1].data.last_remote_wal, "state_pri": .[0].data.state ,  "state_sec": .[1].data.state }' $KEY_PATH_PRI/combo.json
+jq '.' $KEY_PATH_PRI/status.json

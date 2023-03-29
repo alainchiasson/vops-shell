@@ -1,0 +1,39 @@
+#!/usr/bin/env bash
+#
+# vops-gen-root-token cluster
+#
+# Generate the root token using the proper key set
+#
+
+source vops-lib.sh
+
+GENERATOR_CLUSTER=$1
+GENERATOR_CLUSTER_ID=$(vops_id_by_name $GENERATOR_CLUSTER)
+GENERATOR_CLUSTER_ADDR=$(cluster_addr $GENERATOR_CLUSTER_ID)
+GENERATOR_CLUSTER_CONFIG=$(key_path $GENERATOR_CLUSTER_ID)
+GENERATOR_CLUSTER_ROOT=$(get_root $GENERATOR_CLUSTER_ID)
+GENERATOR_CLUSTER_SHARES=$(key_shares $GENERATOR_CLUSTER_ID)
+GENERATOR_CLUSTER_THRESH=$(key_threshold $GENERATOR_CLUSTER_ID)
+
+# On secondary
+vault operator generate-root -address=$GENERATOR_CLUSTER_ADDR -format=json -init > $GENERATOR_CLUSTER_CONFIG/root-token-init.json
+
+# Recovery Shares and Thresholds
+GENERATOR_CLUSTER_THRESH=$(jq -r '.unseal_threshold' $GENERATOR_CLUSTER_CONFIG/keys.json)
+
+# Loop over all recover kyes
+x=0
+while [[ $x -lt $GENERATOR_CLUSTER_THRESH ]]
+do
+   vault operator generate-root \
+     -address=$GENERATOR_CLUSTER_ADDR \
+     -format=json \
+     -nonce=$(jq -r '.nonce' $GENERATOR_CLUSTER_CONFIG/root-token-init.json ) $(jq -r --arg INDEX $x '.unseal_keys_hex[$INDEX | tonumber]' $GENERATOR_CLUSTER_CONFIG/init.json ) >  $GENERATOR_CLUSTER_CONFIG/root-token-int-result.json
+   (( x = x + 1 ))
+done
+
+# Decrypt DR token 
+vault operator generate-root -address=$GENERATOR_CLUSTER_ADDR \
+   -format=json \
+   -decode=$(jq -r '.encoded_token' $GENERATOR_CLUSTER_CONFIG/root-token-int-result.json)  \
+   -otp=$(jq -r '.otp' $GENERATOR_CLUSTER_CONFIG/root-token-init.json) > $GENERATOR_CLUSTER_CONFIG/root-token.json

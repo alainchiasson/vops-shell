@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+#
+# vops-dr-generate-ops-token cluster cluster-key-set
+#
+# Generate a DR-Ops-Token via "cluster" using the "cluster-key-set"
+#
+# As you start linking up clusters for DR, the keysets also get replicated.
+#
+
+source vops-lib.sh
+
+GENERATOR_CLUSTER=$1
+GENERATOR_CLUSTER_ID=$(vops_id_by_name $GENERATOR_CLUSTER)
+GENERATOR_CLUSTER_ADDR=$(cluster_addr $GENERATOR_CLUSTER_ID)
+
+# On secondary
+vault operator generate-root -address=$GENERATOR_CLUSTER_ADDR -format=json -dr-token -cancel

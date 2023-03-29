@@ -1,0 +1,13 @@
+# Setup failover 
+#
+source vops-lib.sh
+
+CLUSTER_PRI=$1
+CLUSTER_ID_PRI=$(vops_id_by_name $CLUSTER_PRI)
+VAULT_PRI=$(cluster_addr $CLUSTER_ID_PRI)
+ROOT_PRI=$(get_root $CLUSTER_ID_PRI)
+KEY_PATH_PRI=$(key_path $CLUSTER_ID_PRI)
+
+VAULT_TOKEN=$ROOT_PRI vault token create -address=$VAULT_PRI \
+    -format=json -role=failover-handler -ttl=8h > $KEY_PATH_PRI/batch-dr-token.json
+    

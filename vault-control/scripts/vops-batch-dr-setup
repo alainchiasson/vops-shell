@@ -1,0 +1,34 @@
+# Setup failover 
+#
+source vops-lib.sh
+
+CLUSTER_PRI=$1
+CLUSTER_ID_PRI=$(vops_id_by_name $CLUSTER_PRI)
+VAULT_PRI=$(cluster_addr $CLUSTER_ID_PRI)
+ROOT_PRI=$(get_root $CLUSTER_ID_PRI)
+KEY_PATH_PRI=$(key_path $CLUSTER_ID_PRI)
+
+VAULT_TOKEN=$ROOT_PRI vault policy write  -address=$VAULT_PRI dr-secondary-promotion - <<EOF
+path "sys/replication/dr/secondary/promote" {
+  capabilities = [ "update" ]
+}
+
+# To update the primary to connect
+path "sys/replication/dr/secondary/update-primary" {
+    capabilities = [ "update" ]
+}
+
+# Only if using integrated storage (raft) as the storage backend
+# To read the current autopilot status
+path "sys/storage/raft/autopilot/state" {
+    capabilities = [ "update" , "read" ]
+}
+EOF
+
+VAULT_TOKEN=$ROOT_PRI vault write -address=$VAULT_PRI \
+    auth/token/roles/failover-handler \
+    allowed_policies=dr-secondary-promotion \
+    orphan=true \
+    renewable=false \
+    token_type=batch
+ 

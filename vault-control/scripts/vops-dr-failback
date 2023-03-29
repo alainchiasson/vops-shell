@@ -28,7 +28,7 @@ KEY_THRESHOLD=$(key_threshold $CLUSTER_ID_SEC)
 vault operator generate-root -address=$VAULT_PRI -format=json -dr-token -init > $KEY_PATH_PRI/dr-token-init.json
 
 # Recovery Shares and Thresholds
-KEY_THRESHOLD=$(jq -r '.recovery_keys_threshold' $KEY_PATH_PRI/init.json)
+KEY_THRESHOLD=$(jq -r '.recovery_keys_threshold' $KEY_PATH_PRI/keys.json)
 
 # Loop over all recover kyes
 x=0
@@ -38,7 +38,7 @@ do
      -address=$VAULT_PRI \
      -format=json \
      -dr-token \
-     -nonce=$(jq -r '.nonce' $KEY_PATH_PRI/dr-token-init.json ) $(jq -r --arg INDEX $x '.recovery_keys_hex[$INDEX | tonumber]' $KEY_PATH_PRI/init.json ) >  $KEY_PATH_PRI/gen-dr-ops.json
+     -nonce=$(jq -r '.nonce' $KEY_PATH_PRI/dr-token-init.json ) $(jq -r --arg INDEX $x '.recovery_keys_hex[$INDEX | tonumber]' $KEY_PATH_PRI/keys.json ) >  $KEY_PATH_PRI/gen-dr-ops.json
    (( x = x + 1 ))
 done
 

@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+#
+# VOPS list - list managed vault clusters
+#
+
+source vops-lib.sh
+
+CLUSTER_ID=$(vops_id_by_name $1)
+
+VAULT_NEW=$(cluster_addr $CLUSTER_ID)
+VAULT_ROOT=$(get_root $CLUSTER_ID)
+
+( curl -s $VAULT_NEW/v1/sys/health
+  curl -s $VAULT_NEW/v1/sys/leader
+  curl -s $VAULT_NEW/v1/sys/seal-status ) | jq -s '.'

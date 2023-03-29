@@ -30,7 +30,7 @@ ROOT_SEC=$(get_root $CLUSTER_ID_SEC)
 VAULT_TOKEN=$ROOT_PRI vault write  -address=$VAULT_PRI -f sys/replication/dr/primary/enable
 VAULT_TOKEN=$ROOT_PRI vault write  -address=$VAULT_PRI -format=json \
    sys/replication/dr/primary/secondary-token \
-   id="dr-secondary" > $KEY_PATH_PRI/dr-token.json
+   id=$(date +%s) > $KEY_PATH_PRI/dr-token.json
 
 # Link to secondary
 VAULT_TOKEN=$ROOT_SEC vault write -address=$VAULT_SEC \

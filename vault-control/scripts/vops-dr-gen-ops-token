@@ -28,7 +28,7 @@ KEY_CLUSTER_ROOT=$(get_root $KEY_CLUSTER_ID)
 vault operator generate-root -address=$GENERATOR_CLUSTER_ADDR -format=json -dr-token -init > $GENERATOR_CLUSTER_CONFIG/dr-token-init.json
 
 # Recovery Shares and Thresholds
-GENERATOR_CLUSTER_THRESH=$(jq -r '.unseal_threshold' $KEY_CLUSTER_PATH/init.json)
+GENERATOR_CLUSTER_THRESH=$(jq -r '.unseal_threshold' $KEY_CLUSTER_PATH/keys.json)
 
 # Loop over all recover kyes
 x=0
@@ -38,7 +38,7 @@ do
      -address=$GENERATOR_CLUSTER_ADDR \
      -format=json \
      -dr-token \
-     -nonce=$(jq -r '.nonce' $GENERATOR_CLUSTER_CONFIG/dr-token-init.json ) $(jq -r --arg INDEX $x '.unseal_keys_hex[$INDEX | tonumber]' $KEY_CLUSTER_PATH/init.json ) >  $GENERATOR_CLUSTER_CONFIG/dr-token-int-result.json
+     -nonce=$(jq -r '.nonce' $GENERATOR_CLUSTER_CONFIG/dr-token-init.json ) $(jq -r --arg INDEX $x '.unseal_keys_hex[$INDEX | tonumber]' $KEY_CLUSTER_PATH/keys.json ) >  $GENERATOR_CLUSTER_CONFIG/dr-token-int-result.json
    (( x = x + 1 ))
 done
 
@@ -47,4 +47,4 @@ vault operator generate-root -address=$GENERATOR_CLUSTER_ADDR \
    -format=json \
    -dr-token \
    -decode=$(jq -r '.encoded_token' $GENERATOR_CLUSTER_CONFIG/dr-token-int-result.json)  \
-   -otp=$(jq -r '.otp' $KEY_CLUSTER_PATH/dr-token-init.json) > $KEY_CLUSTER_PATH/dr-ops-token.json
+   -otp=$(jq -r '.otp' $GENERATOR_CLUSTER_CONFIG/dr-token-init.json) > $KEY_CLUSTER_PATH/dr-ops-token.json

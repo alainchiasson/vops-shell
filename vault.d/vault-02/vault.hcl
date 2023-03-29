@@ -6,6 +6,10 @@ listener "tcp" {
   tls_disable = 1
 }
 
-storage "file" {
+storage "raft" {
   path = "/opt/vault/data"
+  node_id = "raft_node_1"
 }
+
+cluster_addr="http://vault-02:8201"
+api_addr="http://vault-02:8200"

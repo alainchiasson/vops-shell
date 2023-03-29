@@ -33,7 +33,7 @@ services:
       - ./data/vault-01:/opt/vault/data
 
   vault-02:
-    image: hashicorp/vault
+    image: hashicorp/vault-enterprise:1.7-ent
     environment:
       VAULT_ADDR: "http://vault-02:8200"
     command: vault server -config=/etc/vault.d/vault.hcl 

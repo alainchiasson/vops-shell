@@ -1,0 +1,30 @@
+# Create New COnfigs for 4 and 3
+
+echo "Init 3 ent"
+for x in 02 03 04
+do
+  vops-init vault-$x
+done
+
+sleep 5
+
+echo "Unseal 3 ent"
+for x in 02 03 04
+do
+  vops-unseal vault-$x
+done
+
+sleep 10
+
+echo "Print Info about 3 ent"
+for x in 02 03 04
+do
+  vops-state vault-$x
+done
+
+
+#echo "Setup DR between 2 and 3"
+#vops-dr-link vault-02 vault-03
+
+#echo "Setup DR between 2 and 4"
+#vops-dr-link vault-02 vault-04

@@ -24,6 +24,6 @@ KEY_PATH=$(key_path $CLUSTER_ID)
 x=0
 while [[ $x -lt $KEY_THRESHOLD ]]
 do
-    vault operator unseal  -address=$VAULT_NEW $(jq -r ".unseal_keys_hex[$x]" $KEY_PATH/init.json )
+    vault operator unseal  -address=$VAULT_NEW $(jq -r ".unseal_keys_hex[$x]" $KEY_PATH/keys.json )
     (( x = x + 1 ))
 done

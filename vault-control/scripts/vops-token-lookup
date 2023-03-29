@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+#
+# VOPS list - list managed vault clusters
+#
+
+source vops-lib.sh
+
+CLUSTER_SRC=$1
+CLUSTER_ID_SRC=$(vops_id_by_name $CLUSTER_SRC)
+VAULT_SRC=$(cluster_addr $CLUSTER_ID_SRC)
+ROOT_SRC=$(get_root $CLUSTER_ID_SRC)
+
+CLUSTER_TRG=$2
+CLUSTER_ID_TRG=$(vops_id_by_name $CLUSTER_TRG)
+VAULT_TRG=$(cluster_addr $CLUSTER_ID_TRG)
+
+# Verify the token on a cluster
+VAULT_TOKEN=$ROOT_SRC vault token lookup -address=$VAULT_TRG

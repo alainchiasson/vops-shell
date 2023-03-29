@@ -48,5 +48,5 @@ key_path() {
 get_root() {
     ID=${1:-0}
     KEY_PATH=$(key_path $ID)
-    jq -r '.root_token' $KEY_PATH/init.json 
+    jq -r '.token' $KEY_PATH/root-token.json 
 }
